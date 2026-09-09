@@ -73,7 +73,15 @@ def export_all_courses(user, password, base_url, show_ui, logger, timeout_min):
                 raise Exception(
                     "Fallo en el login por un motivo desconocido (no es el error CAS). Verifica tus credenciales o el estado de Séneca.")
 
-        logger.info("Login exitoso. Buscando módulos en el Área Personal...")
+        logger.info("Login exitoso. Navegando al índice general de cursos...")
+        page.goto(f"{base_url}/course/index.php")
+
+        boton_expandir = page.locator("text=/Expandir todo/i").first
+        if boton_expandir.is_visible():
+            logger.info("Desplegando todas las categorías del árbol de cursos...")
+            boton_expandir.click()
+            # Pausa breve para que Moodle renderice los nodos ocultos
+            page.wait_for_timeout(5000)
 
         page.wait_for_selector("a[href*='/course/view.php?id=']", timeout=30000)
 
@@ -88,10 +96,10 @@ def export_all_courses(user, password, base_url, show_ui, logger, timeout_min):
                 match = re.search(r"id=(\d+)", href)
                 if match:
                     course_id = match.group(1)
-                    if course_id not in courses_found or len(link_text) > len(courses_found[course_id]):
+                    if course_id not in courses_found or len(link_text) > len(courses_found.get(course_id, "")):
                         courses_found[course_id] = link_text
 
-        logger.info(f"Se han encontrado {len(courses_found)} cursos activos.")
+        logger.info(f"Se han encontrado {len(courses_found)} cursos listados.")
 
         for course_id, raw_name in courses_found.items():
             slug = generate_slug(raw_name) if raw_name else "modulo-generico"
@@ -141,13 +149,12 @@ if __name__ == "__main__":
                         help="Tiempo máximo de espera por curso en MINUTOS (defecto: 5)")
     parser.add_argument("--ui", action="store_true", help="Muestra la interfaz gráfica del navegador para depurar")
 
-
     args = parser.parse_args()
 
-    password = args.password
-    if not password:
-        password = getpass.getpass(prompt=f"Introduce la contraseña para el usuario '{args.usuario}': ")
+    input_password = args.password
+    if not input_password:
+        input_password = getpass.getpass(prompt=f"Introduce la contraseña para el usuario '{args.usuario}': ")
 
     configured_logger = configure_logger()
 
-    export_all_courses(args.usuario, password, args.url, args.ui, configured_logger, args.timeout)
+    export_all_courses(args.usuario, input_password, args.url, args.ui, configured_logger, args.timeout)
