@@ -81,9 +81,9 @@ def export_all_courses(user, password, base_url, show_ui, logger, timeout_min):
             logger.info("Desplegando todas las categorías del árbol de cursos...")
             boton_expandir.click()
             # Pausa breve para que Moodle renderice los nodos ocultos
-            page.wait_for_timeout(5000)
+            page.wait_for_timeout(10000)
 
-        page.wait_for_selector("a[href*='/course/view.php?id=']", timeout=30000)
+        page.wait_for_selector("a[href*='/course/view.php?id=']", timeout=60000)
 
         links = page.locator("a[href*='/course/view.php?id=']").all()
         courses_found = {}
