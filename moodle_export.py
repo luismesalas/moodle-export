@@ -29,7 +29,7 @@ def generate_slug(text):
 
 
 def export_all_courses(user, password, base_url, show_ui, logger, timeout_min):
-    timeout_ms = timeout_min * 120 * 1000
+    timeout_ms = timeout_min * 60 * 1000
 
     # Limpiamos la URL por si se introduce con una barra al final
     base_url = base_url.rstrip('/')
