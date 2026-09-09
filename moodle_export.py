@@ -29,7 +29,7 @@ def generate_slug(text):
 
 
 def export_all_courses(user, password, base_url, show_ui, logger, timeout_min):
-    timeout_ms = timeout_min * 60 * 1000
+    timeout_ms = timeout_min * 120 * 1000
 
     # Limpiamos la URL por si se introduce con una barra al final
     base_url = base_url.rstrip('/')
@@ -99,26 +99,34 @@ def export_all_courses(user, password, base_url, show_ui, logger, timeout_min):
                     if course_id not in courses_found or len(link_text) > len(courses_found.get(course_id, "")):
                         courses_found[course_id] = link_text
 
-        logger.info(f"Se han encontrado {len(courses_found)} cursos listados.")
+        total_courses = len(courses_found)
+        logger.info(f"Se han encontrado {total_courses} cursos listados.")
+
+        current_course = 0
 
         for course_id, raw_name in courses_found.items():
+            current_course += 1
             slug = generate_slug(raw_name) if raw_name else "modulo-generico"
             final_file_name = f"{course_id}-{slug}.mbz"
             backup_path = f"./backups/{final_file_name}"
 
-            logger.info(
-                f"Iniciando backup del módulo '{raw_name}' (ID: {course_id}) (Timeout configurado: {timeout_min} min)...")
+            # Comprobación de archivo existente
+            if os.path.exists(backup_path):
+                logger.info(f"[{current_course}/{total_courses}] Omitiendo '{raw_name}' (ID: {course_id}) - El archivo ya existe.")
+                continue
+
+            logger.info(f"[{current_course}/{total_courses}] Iniciando backup del módulo '{raw_name}' (ID: {course_id}) (Timeout configurado: {timeout_min} min)...")
 
             page.goto(f"{base_url}/backup/backup.php?id={course_id}")
 
             # Comprueba instantáneamente si aparece el mensaje de error de permisos de Moodle
             if page.locator("text=Lo sentimos, pero no tiene los permisos para hacer esto").is_visible():
-                logger.warning(
-                    f"Omitiendo módulo '{raw_name}' (ID: {course_id}): No hay permisos para copias de seguridad.")
+                logger.warning(f"[{current_course}/{total_courses}] Omitiendo módulo '{raw_name}' (ID: {course_id}): No hay permisos para copias de seguridad.")
                 continue
 
             try:
-                page.click("input[name='oneclickbackup']")
+                # Timeout ampliado aplicado directamente al botón oneclickbackup
+                page.click("input[name='oneclickbackup']", timeout=timeout_ms)
                 page.wait_for_selector("text=El archivo de copia de seguridad se creó con éxito", timeout=timeout_ms)
                 page.click("button:has-text('Continuar')")
 
@@ -127,10 +135,10 @@ def export_all_courses(user, password, base_url, show_ui, logger, timeout_min):
 
                 download = download_info.value
                 download.save_as(backup_path)
-                logger.info(f"Copia del curso '{raw_name}' guardada correctamente en {backup_path}")
+                logger.info(f"[{current_course}/{total_courses}] Copia del curso '{raw_name}' guardada correctamente en {backup_path}")
 
             except Exception as e:
-                logger.error(f"Error al procesar el curso '{raw_name}' (ID: {course_id}): {e}")
+                logger.error(f"[{current_course}/{total_courses}] Error al procesar el curso '{raw_name}' (ID: {course_id}): {e}")
                 continue
 
         browser.close()
